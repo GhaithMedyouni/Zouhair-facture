@@ -70,7 +70,7 @@ const DisplayInvoiceModal = ({ isOpen, toggle, invoice,refreshInvoices }) => {
             const response = await axios.get(`http://localhost:5000/api/invoices/export-pdf/send-email/${invoice._id}/${invoice.createdBy}`);
             
             if (response.status === 200) {
-                await axios.put(`http://localhost:5000/api/invoices/${invoice._id}`, {
+                await axios.put(`http://localhost:5000/api/invoices/invoices/${invoice._id}`, {
                     status: 'Envoyé'
                 }, {
                     headers: {

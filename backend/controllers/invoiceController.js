@@ -316,6 +316,8 @@ exports.generateInvoicePDF = async (req, res) => {
       } else if (invoice.client.entreprise != null) {
         customFileName = `invoice-${invoice.client.entreprise.nom}-${invoice.number}.pdf`;
       }
+      // Add the company logo
+
 
       // Check if the factureImage file exists
       if (fs.existsSync(imagePath)) {
@@ -388,7 +390,12 @@ exports.generateInvoicePDF = async (req, res) => {
       if (invoice.client.entreprise != null) {
         res.setHeader('Content-disposition', `attachment; filename=invoice-${invoice.client.entreprise.nom}-${invoice.number}.pdf`);
       }
-
+      if (company.logo!==null) {
+        doc.image(company.logo, 50, 45, { width: 100 });
+      } else {
+        doc.text('Logo Placeholder', 50, 45, { width: 100 });
+      }
+  
       // Pipe the PDF into the response
       doc.pipe(res);
 
@@ -500,6 +507,12 @@ const generatePDF = (invoice, company) => {
     } else if (invoice.client.entreprise) {
       doc.text(`Nom du client : ${invoice.client.entreprise.nom}`, 200, 220, { align: 'right' });
     }
+// Add the company logo
+if (company.logo!==null) {
+  doc.image(company.logo, 50, 45, { width: 100 });
+} else {
+  doc.text('Logo Placeholder', 50, 45, { width: 100 });
+}
 
     // Add table headers
     doc.moveDown().fillColor('#5F259F').fontSize(12)

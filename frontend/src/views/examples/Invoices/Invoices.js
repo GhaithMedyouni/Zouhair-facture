@@ -511,7 +511,6 @@ const Invoices = () => {
                                                     checked={selectedInvoices.length === filteredInvoices.length && filteredInvoices.length > 0}
                                                 />
                                             </div></th>
-
                                             <th scope="col">Numéro de facture</th>
                                             <th scope="col">Client</th>
                                             <th scope="col">Date</th>

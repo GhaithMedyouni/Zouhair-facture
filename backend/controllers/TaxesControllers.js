@@ -2,12 +2,12 @@ const Tax = require('../models/appmodel/Taxes');
 
 // Create a new tax
 exports.createTax = async (req, res) => {
-  const { name, value, isActive, isDefault, createdBy } = req.body;
+  const { name, taxvalue, isActive, isDefault, createdBy } = req.body;
 
   try {
     const newTax = new Tax({
       name,
-      value,
+      taxvalue,
       isActive,
       isDefault,
       createdBy,

@@ -5,7 +5,7 @@ const taxSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  value: {
+  taxvalue: {
     type: Number,
     required: true,
   },

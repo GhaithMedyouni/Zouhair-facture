@@ -24,15 +24,22 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
         date: new Date().toISOString().substring(0, 10),
         note: '',
         items: [{ article: '', description: '', quantity: 1, price: 0, total: 0 }],
+        paidAmount: 0,
+        tax: invoiceData ? invoiceData.tax : {},
     });
+
 
     const [taxOptions, setTaxOptions] = useState([]);
     const [selectedTax, setSelectedTax] = useState('');
+    const [selectedClient, setSelectedClient] = useState('');
+    const [selectedCurrency, setSelectedCurrency] = useState('');
+
+
     const [taxAmount, setTaxAmount] = useState(0);
     const [invoiceTotal, setInvoiceTotal] = useState(0);
     const [clientOptions, setClientOptions] = useState([]);
     const [currencyOptions, setCurrencyOptions] = useState([]);
-    const [statusOptions] = useState(['Brouillon', 'Envoyé', 'Annulé', 'En attente', 'Accepté', 'Refusé']);
+    const [statusOptions] = useState(['Brouillon', 'Envoyé', 'Annulé']);
     const [productOptions, setProductOptions] = useState([]);
     const [factureImage, setFactureImage] = useState(null);
 
@@ -46,7 +53,7 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                 });
                 setTaxOptions(response.data.map(tax => ({
                     value: tax._id,
-                    label: `${tax.name} - ${tax.value}%`
+                    label: `${tax.taxvalue}%`
                 })));
             } catch (error) {
                 console.error("Error fetching taxes:", error);
@@ -95,18 +102,21 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
             }
         };
 
-        fetchTaxes();
         fetchClients();
-        fetchProducts();
         fetchCurrencies();
+
+        fetchProducts();
+        fetchTaxes();
+
     }, [userId]);
 
     useEffect(() => {
         if (invoiceData) {
             setInvoice(invoiceData);
             setSelectedTax(invoiceData.tax);
+            setSelectedCurrency(invoiceData.currency)
         }
-    }, [invoiceData]);
+    }, [invoiceData],);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -135,36 +145,96 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
     };
 
     const handleTaxChange = (e) => {
-        setSelectedTax(e.target.value);
+        const newTaxId = e.target.value;
+        console.log('New tax ID:', newTaxId);
+
+        // Find the selected tax option (the full object)
+        const selectedTaxOption = taxOptions.find(tax => tax.value === newTaxId);
+        console.log('Selected tax option:', selectedTaxOption);
+
+        // Update the selected tax with the full tax object, not just the ID
+        setSelectedTax(selectedTaxOption);
+
+        // Update the invoice object with the new tax
+        setInvoice(prevInvoice => ({
+            ...prevInvoice,
+            tax: selectedTaxOption // Update the tax in the invoice object
+        }));
     };
+    const handleCurrencyChange = (e) => {
+        const newCurrencyId = e.target.value;
+        console.log('New currency ID:', newCurrencyId);
+
+        // Find the selected currency option (the full object)
+        const selectedCurrencyOption = currencyOptions.find(currency => currency.value === newCurrencyId);
+        console.log('Selected currency option:', selectedCurrencyOption);
+
+        // Update the selected currency with the full currency object, not just the ID
+        setSelectedCurrency(selectedCurrencyOption);
+
+        // Update the invoice object with the new currency
+        setInvoice(prevInvoice => ({
+            ...prevInvoice,
+            currency: selectedCurrencyOption // Update the currency in the invoice object
+        }));
+    };
+    const handleClientChange = (e) => {
+        const newClientId = e.target.value;
+        console.log('New client ID:', newClientId);
+
+        // Find the selected client option (the full object)
+        const selectedClientOption = clientOptions.find(client => client.value === newClientId);
+        console.log('Selected client option:', selectedClientOption);
+
+        // Update the selected client with the full client object, not just the ID
+        setSelectedClient(selectedClientOption);
+
+        // Update the invoice object with the new client
+        setInvoice(prevInvoice => ({
+            ...prevInvoice,
+            client: selectedClientOption // Update the client in the invoice object
+        }));
+    };
+
+
+    // Optional: Log the updated state of selectedTax after the state change
+    useEffect(() => {
+        console.log("Updated selectedTax state:", selectedTax);
+    }, [selectedTax]);
+
+    useEffect(() => {
+        console.log("Updated selectedcurrency state:", selectedCurrency);
+    }, [selectedCurrency]);
+
+    useEffect(() => {
+        console.log("Updated selectedClient state:", selectedClient);
+    }, [selectedClient]);
+
 
     useEffect(() => {
         const subtotal = calculateSubtotal();
-        const selectedTaxOption = taxOptions.find(tax => tax.value === selectedTax);
-        const calculatedTax = selectedTaxOption ? (subtotal * parseFloat(selectedTaxOption.label.split(' - ')[1])) / 100 : 0;
+
+        const selectedTaxOption = taxOptions.find(tax => tax.value === getTaxevaluecalcule(selectedTax.value));
+        const calculatedTax = selectedTaxOption ? (subtotal * parseFloat(selectedTaxOption.label)) / 100 : 0;
         setTaxAmount(calculatedTax);
         setInvoiceTotal(subtotal + calculatedTax);
-    }, [invoice.items, selectedTax, taxOptions]);
-
- 
+    }, [invoice.items, selectedTax, taxOptions,selectedCurrency,currencyOptions,selectedClient,clientOptions]);
 
     const handleSave = async () => {
         try {
             // Log the invoice ID being sent
             console.log(`Invoice ID being sent: ${invoice._id}`);
-    
+
             const formData = new FormData();
-    
-            // Make sure to send only the client ObjectId
-            formData.append('client', invoice.client._id); // Use client._id instead of the whole object
+
+            // Append fields to FormData
             formData.append('number', invoice.number);
             formData.append('year', invoice.year);
-            formData.append('currency', invoice.currency._id);
             formData.append('status', invoice.status);
             formData.append('date', invoice.date);
             formData.append('note', invoice.note);
             formData.append('type', invoice.type);
-    
+
             // Append items to FormData
             invoice.items.forEach((item, index) => {
                 formData.append(`items[${index}][article]`, item.article);
@@ -173,42 +243,60 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                 formData.append(`items[${index}][price]`, item.price);
                 formData.append(`items[${index}][total]`, item.total);
             });
-    
+
+            // Append subtotal and tax
             formData.append('subtotal', calculateSubtotal());
-    
-            // Log selected tax
+
+            // Log and append selected tax
             console.log("Selected Tax:", selectedTax);
-    
-            // Append tax only if selectedTax is defined and has an _id
-            if (selectedTax && selectedTax._id) {
-                formData.append('tax', selectedTax._id);
+
+            // Check if the selectedTax is valid and append its ID
+            if (selectedTax && selectedTax.value) {
+                formData.append('tax', selectedTax.value); // Ensure tax ID is included
             } else {
                 console.warn("No valid tax ID found, skipping tax append.");
-                // Handle what to do if tax is not set
             }
-    
-            formData.append('taxAmount', taxAmount);
+
+            if (selectedCurrency && selectedCurrency.value) {
+                formData.append('currency', selectedCurrency.value); // Ensure tax ID is included
+            } else {
+                console.warn("No valid tax ID found, skipping tax append.");
+            }
+
+            if (selectedClient && selectedClient.value) {
+                formData.append('client', selectedClient.value); // Ensure tax ID is included
+            } else {
+                console.warn("No valid tax ID found, skipping tax append.");
+            }
+
+            // Append tax amount and total
+            formData.append('taxAmount', taxAmount); // Ensure this value is calculated correctly
             formData.append('total', invoiceTotal);
             formData.append('createdBy', userId);
-    
+
             // Append the image file if it exists
             if (factureImage) {
                 formData.append('factureImage', factureImage);
             }
-    
+
+            // Log FormData for debugging
+            for (let pair of formData.entries()) {
+                console.log(`${pair[0]}: ${pair[1]}`);
+            }
+
             // Determine payment status
             let paymentStatus = invoice.paidAmount >= invoice.total ? 'Payé' : 'impayé';
-    
-            // Send the invoice data including the image (if provided)
-            const response = await axios.put(`http://localhost:5000/api/invoices/invoices/${invoice._id}`, formData, {
+
+            // Send the invoice data
+            await axios.put(`http://localhost:5000/api/invoices/invoices/${invoice._id}`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
             });
-    
+
             // Update payment status if necessary
-            if (response.data.paidAmount !== invoice.paidAmount) {
+            if (paymentStatus === 'impayé') {
                 await axios.put(`http://localhost:5000/api/invoices/invoices/${invoice._id}`, {
                     paymentStatus: paymentStatus
                 }, {
@@ -217,7 +305,7 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                     }
                 });
             }
-    
+
             // Show success toast
             toast.success('Facture mise à jour avec succès', {
                 autoClose: 2000,
@@ -227,12 +315,13 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                 draggable: true,
                 progress: undefined,
             });
-    
+
+            // Refresh the list of invoices and close the modal
             refreshInvoices();
             toggle();
         } catch (error) {
             console.error("Error updating invoice:", error);
-    
+
             if (error.response && error.response.status === 400) {
                 toast.error('Le numéro de facture existe déjà. Veuillez utiliser un numéro unique.', {
                     autoClose: 3000,
@@ -254,6 +343,9 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
             }
         }
     };
+
+
+
 
     const handleProductChange = (index, selectedOption) => {
         const newItems = [...invoice.items];
@@ -281,11 +373,37 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
             console.error("Error fetching products:", error);
         }
     };
+    useEffect(() => {
+        if (invoiceData) {
+            setInvoice(invoiceData);
+
+        }
+    }, [invoiceData]);
 
 
+    const getTaxevalue = (id) => {
+        const maincontact = taxOptions.find(taxe => taxe.value === id);
+        return maincontact ? maincontact.label : selectedTax.taxvalue;
+    };
+
+    const getCurrencyCode = (id) => {
+        const maincontact = currencyOptions.find(curr => curr.value === id);
+        return maincontact ? maincontact.label : selectedCurrency.code +" - "+ selectedCurrency.name ;
+    };
+
+    const getClientName = (id) => {
+        const maincontact = clientOptions.find(client => client.value === id);
+        return maincontact ? maincontact.label : selectedClient?.type ==="Person" ? selectedClient?.person?.nom : selectedClient?.entreprise?.nom  ;
+    };
+
+    const getTaxevaluecalcule = (id) => {
+        const maincontact = taxOptions.find(taxe => taxe.value === id);
+        return maincontact ? maincontact.value : selectedTax._id ;
+    };
     return (
         <Modal isOpen={isOpen} toggle={toggle} size="lg">
             <ModalHeader toggle={toggle}>Modifier facture</ModalHeader>
+
             <ModalBody>
                 <Row form>
                     <Col md={6}>
@@ -295,15 +413,14 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                                 type="select"
                                 name="client"
                                 id="client"
-                                value={invoice.client ? invoice.client._id : ''} // Assuming client._id is used as the value
-                                onChange={handleInputChange}
+                                value={selectedClient ? selectedClient : ' '} // Use client ID here
+                                onChange={handleClientChange}
                             >
-                                <option value="">{
-                                    invoice.client ? (invoice.client.type === 'Person'
-                                        ? `${invoice.client.person.prenom} ${invoice.client.person.nom}`
-                                        : `${invoice.client.entreprise.nom}`)
-                                        : 'Select a client' // Default option if client is undefined
-                                }</option>
+                                {console.log("newwww", selectedClient.label)}
+
+                                <option value="">
+                                   {getClientName(selectedClient.value)}
+                                </option>
 
                                 {clientOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
@@ -311,8 +428,12 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                                     </option>
                                 ))}
                             </Input>
+                          
                         </FormGroup>
                     </Col>
+
+
+
                     <Col md={3}>
                         <FormGroup>
                             <Label for="number">Number</Label>
@@ -346,11 +467,13 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                                 type="date"
                                 name="date"
                                 id="date"
-                                value={invoice.date}
+                                value={invoice.date || ''} // Use invoice.date or empty string if it's not set
                                 onChange={handleInputChange}
+
                             />
                         </FormGroup>
                     </Col>
+
                     <Col md={6}>
                         <FormGroup>
                             <Label for="status">Status</Label>
@@ -361,32 +484,35 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                                 value={invoice.status}
                                 onChange={handleInputChange}
                             >
-                                <option value="Brouillon">Brouillon</option>
-                                <option value="Envoyé">Envoyé</option>
-                                <option value="Annulé">Annulé</option>
+                                {statusOptions.map((status) => (
+                                    <option key={status} value={status}>
+                                        {status}
+                                    </option>
+                                ))}
                             </Input>
                         </FormGroup>
                     </Col>
-
                 </Row>
                 <Row form>
                     <Col md={12}>
                         <FormGroup>
-                            <Label for="currency">Devise</Label>
+                            <Label for="currency">Currency</Label>
                             <Input
                                 type="select"
                                 name="currency"
                                 id="currency"
-                                value={invoice.currency}
-                                onChange={handleInputChange}
+                                value={selectedCurrency ? selectedCurrency : ''}
+                                onChange={handleCurrencyChange}
                             >
-                                <option value="">{invoice.currency.code} - {invoice.currency.name}</option>
+
+                                <option value="">{getCurrencyCode(selectedCurrency.value)}</option>
                                 {currencyOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>
                                 ))}
                             </Input>
+
                         </FormGroup>
                     </Col>
 
@@ -457,21 +583,6 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                     </Row>
                 ))}
                 <Button color="primary" onClick={addItem}>Ajouter</Button>
-                <h5 className="mt-3"></h5>
-                <hr />
-                <Row form>
-                    <Col md={12}>
-                        <FormGroup>
-                            <Label for="invoiceImage">Upload Invoice Image</Label>
-                            <Input
-                                type="file"
-                                id="invoiceImage"
-                                onChange={(e) => setFactureImage(e.target.files[0])} // Store the selected file
-                                accept="image/jpeg,image/png,image/jpg"
-                            />
-                        </FormGroup>
-                    </Col>
-                </Row>
                 <Row form className="mt-3">
                     <Col md={6}>
                         <FormGroup>
@@ -480,30 +591,34 @@ const EditProformaInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices
                                 type="select"
                                 name="tax"
                                 id="tax"
-                                value={selectedTax}
+                                value={selectedTax ? selectedTax : ''} // Ensure selectedTax is correctly set
+
                                 onChange={handleTaxChange}
-                            >
-                                <option>{selectedTax.value}%</option>
+                            >                               
+
+                                <option value="">{getTaxevalue(selectedTax.value)}%</option>
                                 {taxOptions.map((tax) => (
                                     <option key={tax.value} value={tax.value}>
                                         {tax.label}
                                     </option>
                                 ))}
                             </Input>
+
                         </FormGroup>
                     </Col>
                 </Row>
                 <Row>
                     <Col md={6}>
-                        <div>Subtotal: ${calculateSubtotal().toFixed(2)}</div>
-                        <div>Tax: ${taxAmount.toFixed(2)}</div>
-                        <div>Total: ${invoiceTotal.toFixed(2)}</div>
+                        <div>Subtotal: {calculateSubtotal().toFixed(2)}</div>
+                        <div>Tax:{taxAmount.toFixed(2)}</div>
+                        <div>Total: {invoiceTotal.toFixed(2)}</div>
                     </Col>
                 </Row>
+
             </ModalBody>
             <ModalFooter>
                 <Button color="secondary" onClick={toggle}>Annuler</Button>
-                <Button color="primary" onClick={handleSave}>Modifier</Button>
+                <Button color="primary" onClick={handleSave}>Modifer</Button>
             </ModalFooter>
         </Modal>
     );

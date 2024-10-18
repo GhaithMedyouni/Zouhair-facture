@@ -130,10 +130,10 @@ const EnregistrerPaymentModal = ({ isOpen, toggle, invoice, refreshInvoices, use
                             : `${invoice.client.entreprise.telephone}`}</p>
                             <p>Status de paiement: <span className={`badge badge-${invoice.paymentStatus === 'Payé' ? 'success' : invoice.paymentStatus === 'Partiellement payé' ? 'info' : 'danger'}`}>{invoice.paymentStatus}</span></p>
                             <hr />
-                            <p>Subtotal: {invoice.subtotal} $</p>
-                            <p>Total: {invoice.total} $</p>
-                            <p>Payé: {invoice.paidAmount} $</p>
-                            <p>Montant restant: {remainingAmount} $</p>
+                            <p>Subtotal: {invoice.subtotal} </p>
+                            <p>Total: {invoice.total} </p>
+                            <p>Payé: {invoice.paidAmount} </p>
+                            <p>Montant restant: {remainingAmount} </p>
                         </div>
                     </Col>
                 </Row>

@@ -226,7 +226,7 @@ const Taxes = () => {
                                             currentTaxes.map((tax) => (
                                                 <tr key={tax._id}>
                                                     <td>{tax.name}</td>
-                                                    <td>{tax.value}%</td>
+                                                    <td>{tax.taxvalue}%</td>
                                                     <td><Switch
                                                         checked={tax.isActive}
                                                         onChange={() => { }}

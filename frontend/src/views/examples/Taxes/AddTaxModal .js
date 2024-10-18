@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 
 const AddTaxModal = ({ isOpen, toggle, refreshTaxes, userId }) => {
     const [name, setName] = useState("");
-    const [value, setValue] = useState("");
+    const [taxvalue, setTaxValue] = useState("");
     const [isActive, setIsActive] = useState(true);
     const [isDefault, setIsDefault] = useState(false);
 
@@ -28,7 +28,7 @@ const AddTaxModal = ({ isOpen, toggle, refreshTaxes, userId }) => {
 
             await axios.post("http://localhost:5000/api/taxes", {
                 name,
-                value,
+                taxvalue,
                 isActive,
                 isDefault,
                 createdBy: userId,
@@ -75,8 +75,8 @@ const AddTaxModal = ({ isOpen, toggle, refreshTaxes, userId }) => {
                     <Input
                         type="number"
                         id="value"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
+                        value={taxvalue}
+                        onChange={(e) => setTaxValue(e.target.value)}
                     />
                 </FormGroup>
                 <FormGroup>

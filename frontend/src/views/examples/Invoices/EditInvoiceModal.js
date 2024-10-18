@@ -15,7 +15,6 @@ import {
 import { toast } from 'react-toastify';
 
 const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId }) => {
-    console.log(invoiceData)
     const [invoice, setInvoice] = useState({
         client: '',
         number: 1,
@@ -54,7 +53,7 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                 });
                 setTaxOptions(response.data.map(tax => ({
                     value: tax._id,
-                    label: `${tax.name} - ${tax.value}%`
+                    label: `${tax.taxvalue}%`
                 })));
             } catch (error) {
                 console.error("Error fetching taxes:", error);
@@ -101,7 +100,6 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
             } catch (error) {
                 console.error("Error fetching currencies:", error);
             }
-            console.log(invoiceData)
         };
 
         fetchClients();
@@ -116,8 +114,9 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
         if (invoiceData) {
             setInvoice(invoiceData);
             setSelectedTax(invoiceData.tax);
+            setSelectedCurrency(invoiceData.currency)
         }
-    }, [invoiceData]);
+    }, [invoiceData],);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -147,42 +146,95 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
 
     const handleTaxChange = (e) => {
         const newTaxId = e.target.value;
+        console.log('New tax ID:', newTaxId);
+
+        // Find the selected tax option (the full object)
         const selectedTaxOption = taxOptions.find(tax => tax.value === newTaxId);
-        setSelectedTax(newTaxId);
+        console.log('Selected tax option:', selectedTaxOption);
+
+        // Update the selected tax with the full tax object, not just the ID
+        setSelectedTax(selectedTaxOption);
+
+        // Update the invoice object with the new tax
         setInvoice(prevInvoice => ({
             ...prevInvoice,
             tax: selectedTaxOption // Update the tax in the invoice object
         }));
     };
-    
+    const handleCurrencyChange = (e) => {
+        const newCurrencyId = e.target.value;
+        console.log('New currency ID:', newCurrencyId);
+
+        // Find the selected currency option (the full object)
+        const selectedCurrencyOption = currencyOptions.find(currency => currency.value === newCurrencyId);
+        console.log('Selected currency option:', selectedCurrencyOption);
+
+        // Update the selected currency with the full currency object, not just the ID
+        setSelectedCurrency(selectedCurrencyOption);
+
+        // Update the invoice object with the new currency
+        setInvoice(prevInvoice => ({
+            ...prevInvoice,
+            currency: selectedCurrencyOption // Update the currency in the invoice object
+        }));
+    };
+    const handleClientChange = (e) => {
+        const newClientId = e.target.value;
+        console.log('New client ID:', newClientId);
+
+        // Find the selected client option (the full object)
+        const selectedClientOption = clientOptions.find(client => client.value === newClientId);
+        console.log('Selected client option:', selectedClientOption);
+
+        // Update the selected client with the full client object, not just the ID
+        setSelectedClient(selectedClientOption);
+
+        // Update the invoice object with the new client
+        setInvoice(prevInvoice => ({
+            ...prevInvoice,
+            client: selectedClientOption // Update the client in the invoice object
+        }));
+    };
+
+
+    // Optional: Log the updated state of selectedTax after the state change
+    useEffect(() => {
+        console.log("Updated selectedTax state:", selectedTax);
+    }, [selectedTax]);
+
+    useEffect(() => {
+        console.log("Updated selectedcurrency state:", selectedCurrency);
+    }, [selectedCurrency]);
+
+    useEffect(() => {
+        console.log("Updated selectedClient state:", selectedClient);
+    }, [selectedClient]);
+
 
     useEffect(() => {
         const subtotal = calculateSubtotal();
-        const selectedTaxOption = taxOptions.find(tax => tax.value === selectedTax);
-        const calculatedTax = selectedTaxOption ? (subtotal * parseFloat(selectedTaxOption.label.split(' - ')[1])) / 100 : 0;
+
+        const selectedTaxOption = taxOptions.find(tax => tax.value === getTaxevaluecalcule(selectedTax.value));
+        const calculatedTax = selectedTaxOption ? (subtotal * parseFloat(selectedTaxOption.label)) / 100 : 0;
         setTaxAmount(calculatedTax);
         setInvoiceTotal(subtotal + calculatedTax);
-    }, [invoice.items, selectedTax, taxOptions]);
+    }, [invoice.items, selectedTax, taxOptions,selectedCurrency,currencyOptions,selectedClient,clientOptions]);
 
     const handleSave = async () => {
         try {
             // Log the invoice ID being sent
             console.log(`Invoice ID being sent: ${invoice._id}`);
-    
+
             const formData = new FormData();
-    
+
             // Append fields to FormData
-            formData.append('client', invoice.client._id);
-            console.log(invoice.client._id)
             formData.append('number', invoice.number);
             formData.append('year', invoice.year);
-            formData.append('currency', invoice.currency._id);
             formData.append('status', invoice.status);
             formData.append('date', invoice.date);
             formData.append('note', invoice.note);
             formData.append('type', invoice.type);
 
-    
             // Append items to FormData
             invoice.items.forEach((item, index) => {
                 formData.append(`items[${index}][article]`, item.article);
@@ -191,35 +243,50 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                 formData.append(`items[${index}][price]`, item.price);
                 formData.append(`items[${index}][total]`, item.total);
             });
-    
+
+            // Append subtotal and tax
             formData.append('subtotal', calculateSubtotal());
-    
-            // Log selected tax
+
+            // Log and append selected tax
             console.log("Selected Tax:", selectedTax);
-    
-            if (selectedTax && selectedTax._id) {
-                formData.append('tax', selectedTax._id); // Ensure tax ID is included
+
+            // Check if the selectedTax is valid and append its ID
+            if (selectedTax && selectedTax.value) {
+                formData.append('tax', selectedTax.value); // Ensure tax ID is included
             } else {
                 console.warn("No valid tax ID found, skipping tax append.");
             }
-    
-            formData.append('taxAmount', taxAmount);
+
+            if (selectedCurrency && selectedCurrency.value) {
+                formData.append('currency', selectedCurrency.value); // Ensure tax ID is included
+            } else {
+                console.warn("No valid tax ID found, skipping tax append.");
+            }
+
+            if (selectedClient && selectedClient.value) {
+                formData.append('client', selectedClient.value); // Ensure tax ID is included
+            } else {
+                console.warn("No valid tax ID found, skipping tax append.");
+            }
+
+            // Append tax amount and total
+            formData.append('taxAmount', taxAmount); // Ensure this value is calculated correctly
             formData.append('total', invoiceTotal);
             formData.append('createdBy', userId);
-    
+
             // Append the image file if it exists
             if (factureImage) {
                 formData.append('factureImage', factureImage);
             }
-    
+
             // Log FormData for debugging
             for (let pair of formData.entries()) {
                 console.log(`${pair[0]}: ${pair[1]}`);
             }
-    
+
             // Determine payment status
             let paymentStatus = invoice.paidAmount >= invoice.total ? 'Payé' : 'impayé';
-    
+
             // Send the invoice data
             await axios.put(`http://localhost:5000/api/invoices/invoices/${invoice._id}`, formData, {
                 headers: {
@@ -227,7 +294,7 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
             });
-    
+
             // Update payment status if necessary
             if (paymentStatus === 'impayé') {
                 await axios.put(`http://localhost:5000/api/invoices/invoices/${invoice._id}`, {
@@ -238,7 +305,7 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                     }
                 });
             }
-    
+
             // Show success toast
             toast.success('Facture mise à jour avec succès', {
                 autoClose: 2000,
@@ -248,12 +315,13 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                 draggable: true,
                 progress: undefined,
             });
-    
+
+            // Refresh the list of invoices and close the modal
             refreshInvoices();
             toggle();
         } catch (error) {
             console.error("Error updating invoice:", error);
-    
+
             if (error.response && error.response.status === 400) {
                 toast.error('Le numéro de facture existe déjà. Veuillez utiliser un numéro unique.', {
                     autoClose: 3000,
@@ -275,8 +343,9 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
             }
         }
     };
-    
-   
+
+
+
 
     const handleProductChange = (index, selectedOption) => {
         const newItems = [...invoice.items];
@@ -309,12 +378,31 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
             setInvoice(invoiceData);
 
         }
-        console.log(invoiceData)
     }, [invoiceData]);
+
+
+    const getTaxevalue = (id) => {
+        const maincontact = taxOptions.find(taxe => taxe.value === id);
+        return maincontact ? maincontact.label : selectedTax.taxvalue;
+    };
+
+    const getCurrencyCode = (id) => {
+        const maincontact = currencyOptions.find(curr => curr.value === id);
+        return maincontact ? maincontact.label : selectedCurrency.code +" - "+ selectedCurrency.name ;
+    };
+
+    const getClientName = (id) => {
+        const maincontact = clientOptions.find(client => client.value === id);
+        return maincontact ? maincontact.label : selectedClient?.type ==="Person" ? selectedClient?.person?.nom : selectedClient?.entreprise?.nom  ;
+    };
+
+    const getTaxevaluecalcule = (id) => {
+        const maincontact = taxOptions.find(taxe => taxe.value === id);
+        return maincontact ? maincontact.value : selectedTax._id ;
+    };
     return (
         <Modal isOpen={isOpen} toggle={toggle} size="lg">
             <ModalHeader toggle={toggle}>Modifier facture</ModalHeader>
-            <h1>{invoiceData.tax.value}</h1>
 
             <ModalBody>
                 <Row form>
@@ -325,24 +413,13 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                                 type="select"
                                 name="client"
                                 id="client"
-                                value={invoice.client ? invoice.client._id : ''} // Use client ID here
-                                onChange={(e) => {
-                                    const selectedClient = clientOptions.find(option => option.value === e.target.value);
-                                    handleInputChange({
-                                        target: {
-                                            name: 'client',
-                                            value: selectedClient, // Set the selected client object
-                                        },
-                                    });
-                                    console.log("Selected client ID:", selectedClient ? selectedClient.value : null); // Log the selected client ID
-                                }}
+                                value={selectedClient ? selectedClient : ' '} // Use client ID here
+                                onChange={handleClientChange}
                             >
+                                {console.log("newwww", selectedClient.label)}
+
                                 <option value="">
-                                    {invoice.client && invoice.client.type === 'Person'
-                                        ? `${invoice.client.person.prenom} ${invoice.client.person.nom}`
-                                        : invoice.client && invoice.client.entreprise.nom
-                                            ? invoice.client.entreprise.nom // Adjust according to your data structure
-                                            : 'Select a client'}
+                                   {getClientName(selectedClient.value)}
                                 </option>
 
                                 {clientOptions.map((option) => (
@@ -351,6 +428,7 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                                     </option>
                                 ))}
                             </Input>
+                          
                         </FormGroup>
                     </Col>
 
@@ -423,16 +501,18 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                                 type="select"
                                 name="currency"
                                 id="currency"
-                                value={invoice.currency}
-                                onChange={handleInputChange}
+                                value={selectedCurrency ? selectedCurrency : ''}
+                                onChange={handleCurrencyChange}
                             >
-                                <option value="">{invoice.currency.code} - {invoice.currency.name}</option>
+
+                                <option value="">{getCurrencyCode(selectedCurrency.value)}</option>
                                 {currencyOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>
                                 ))}
                             </Input>
+
                         </FormGroup>
                     </Col>
 
@@ -512,9 +592,11 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                                 name="tax"
                                 id="tax"
                                 value={selectedTax ? selectedTax : ''} // Ensure selectedTax is correctly set
+
                                 onChange={handleTaxChange}
-                            >
-                                <option value="">Select Tax</option>
+                            >                               
+
+                                <option value="">{getTaxevalue(selectedTax.value)}%</option>
                                 {taxOptions.map((tax) => (
                                     <option key={tax.value} value={tax.value}>
                                         {tax.label}
@@ -527,9 +609,9 @@ const EditInvoiceModal = ({ isOpen, toggle, invoiceData, refreshInvoices, userId
                 </Row>
                 <Row>
                     <Col md={6}>
-                        <div>Subtotal: ${calculateSubtotal().toFixed(2)}</div>
-                        <div>Tax: ${taxAmount.toFixed(2)}</div>
-                        <div>Total: ${invoiceTotal.toFixed(2)}</div>
+                        <div>Subtotal: {calculateSubtotal().toFixed(2)}</div>
+                        <div>Tax:{taxAmount.toFixed(2)}</div>
+                        <div>Total: {invoiceTotal.toFixed(2)}</div>
                     </Col>
                 </Row>
 
