@@ -1,0 +1,38 @@
+version: '3'
+services:
+  backend:
+    image: node:latest  # Use official Node.js image
+    working_dir: /app
+    volumes:
+      - ./backend:/app  # Mount the local backend directory into the container
+      - /app/node_modules  # Ensure node_modules are managed inside the container
+    ports:
+      - "5000:5000"  # Map port 5000 for the backend
+    command: sh -c "npm install && npm start"  # Run npm install and then start the server
+    environment:
+      - NODE_ENV=development
+      - MONGO_URL=mongodb://mongo:27017/mydatabase
+    depends_on:
+      - mongo
+
+  frontend:
+    image: node:latest  # Use official Node.js image
+    working_dir: /app
+    volumes:
+      - ./frontend:/app  # Mount the local frontend directory into the container
+      - /app/node_modules  # Ensure node_modules are managed inside the container
+    ports:
+      - "3000:3000"  # Map port 3000 for the frontend
+    command: sh -c "npm install && npm start"  # Run npm install and then start the React app
+    environment:
+      - NODE_ENV=development
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"  # Expose MongoDB default port
+    volumes:
+      - mongo-data:/data/db  # Persistent storage for MongoDB
+
+volumes:
+  mongo-data:

@@ -5,56 +5,64 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
 exports.register = async (req, res) => {
-    try {
-        const existingAdmin = await Admin.findOne({ email: req.body.email });
-        if (existingAdmin) {
-            return res.status(400).json({ message: 'Email already exists' });
-        }
+  try {
+      const existingAdmin = await Admin.findOne({ email: req.body.email });
+      if (existingAdmin) {
+          return res.status(400).json({ message: 'Email already exists' });
+      }
 
-        const newAdmin = new Admin({
-            email: req.body.email,
-            name: req.body.name,
-            surname: req.body.surname,
-            password : req.body.password
-        });
-        await newAdmin.save();
+      const newAdmin = new Admin({
+          email: req.body.email,
+          name: req.body.name,
+          surname: req.body.surname,
+          password: req.body.password,
+      });
+      await newAdmin.save();
 
-        const token = jwt.sign({ email: newAdmin.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      const token = jwt.sign({ email: newAdmin.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        const transporter = nodemailer.createTransport({
+      const transporter = nodemailer.createTransport({
           host: process.env.HOST_MAILER,
           port: process.env.PORT_MAILER,
           secure: process.env.SECURE_MAILER === 'true', // Use environment variable to control secure flag
           auth: {
-            user: process.env.USER_MAILER,
-            pass: process.env.PASS_MAILER,
+              user: process.env.USER_MAILER,
+              pass: process.env.PASS_MAILER,
           },
           tls: {
-            rejectUnauthorized: false, // Allow unauthorized certs (optional, should be used cautiously)
+              rejectUnauthorized: false, // Allow unauthorized certs (optional, should be used cautiously)
           },
-        });
+      });
 
-        const mailOptions = {
-            from: process.env.USER_MAILER,
-            to: req.body.email,
-            subject: 'Confirmation Email',
-            text: 'Thank you for registering. Your account has been successfully created.',
-            html: `<p>Thank you for registering. Please click <a href="${process.env.BASE_URL}api/confirm/${token}">here</a> to confirm your email address.</p>`
-        };
+      // Read the HTML file and inject the token in the appropriate place
+      const htmlFilePath = path.join(__dirname, 'EmailConfirmation.html');
+      let htmlContent = fs.readFileSync(htmlFilePath, 'utf8');
 
-        transporter.sendMail(mailOptions, function (error, info) {
-            if (error) {
-                console.log(error);
-                res.status(500).json({ message: 'Error sending email', error: error.message });
-            } else {
-                console.log('Email sent: ' + info.response);
-                res.status(201).json({ message: 'Admin added successfully', Admin: newAdmin });
-            }
-        });
-    } catch (error) {
-        res.status(400).json({ message: 'Failed to add admin', error: error.message });
-    }
+      // Replace placeholders in the HTML file with actual data (e.g., the confirmation link)
+      htmlContent = htmlContent.replace('{{confirmation_link}}', `${process.env.BASE_URL}api/confirm/${token}`);
+
+      const mailOptions = {
+          from: process.env.USER_MAILER,
+          to: req.body.email,
+          subject: 'Confirmation Email',
+          html: htmlContent, // Use the HTML content
+      };
+
+      transporter.sendMail(mailOptions, function (error, info) {
+          if (error) {
+              console.log(error);
+              res.status(500).json({ message: 'Error sending email', error: error.message });
+          } else {
+              console.log('Email sent: ' + info.response);
+              res.status(201).json({ message: 'Admin added successfully', Admin: newAdmin });
+          }
+      });
+  } catch (error) {
+      res.status(400).json({ message: 'Failed to add admin', error: error.message });
+  }
 };
 
 exports.confirmEmail = async (req, res) => {
@@ -109,20 +117,21 @@ exports.login =async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000); // Generates a 6-digit numeric OTP
     return otp.toString();
   };
-  exports.sendotp= async (req, res) => {
-
+  exports.sendotp = async (req, res) => {
     const { email } = req.body;
     const user = await Admin.findOne({ email });
-    if (!user) return res.status(404).json({message : 'User not found'});
-    if (user.enabled==false) return res.status(404).json({message:'User not verified yet'});
-    
-    if (user.lastOtpRequest &&  Date.now() - user.lastOtpRequest.getTime() < 2 * 60 * 1000) {
-      return res.status(429).json({error:'Please wait 2 minutes before requesting a new OTP'});
+  
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.enabled === false) return res.status(404).json({ message: 'User not verified yet' });
+  
+    if (user.lastOtpRequest && Date.now() - user.lastOtpRequest.getTime() < 2 * 60 * 1000) {
+      return res.status(429).json({ error: 'Please wait 2 minutes before requesting a new OTP' });
     }
+  
     const otp = generateNumericOTP(); // Generate a 6-digit OTP
     user.otp = otp;
     user.otpExpires = Date.now() + 3600000; // OTP expires in 1 hour
-    user.lastOtpRequest = Date.now(); 
+    user.lastOtpRequest = Date.now();
     await user.save();
   
     const transporter = nodemailer.createTransport({
@@ -137,20 +146,28 @@ exports.login =async (req, res) => {
         rejectUnauthorized: false, // Allow unauthorized certs (optional, should be used cautiously)
       },
     });
-    const mailOptions = {
-        from:process.env.USER_MAILER,
-        to: user.email,
-        subject: 'Password Reset OTP',
-        text: `Your OTP for password reset is: ${otp}`,
-      };
+  
+    // Read the HTML file and inject the OTP
+    const htmlFilePath = path.join(__dirname, 'SendOTP.html');
+    let htmlContent = fs.readFileSync(htmlFilePath, 'utf8');
     
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          return res.status(500).json({error: 'Error sending email'});
-        }
-        res.status(200).json({message: 'OTP sent to email'});
-      });
-    }
+    // Replace the placeholder {{otp_code}} with the actual OTP
+    htmlContent = htmlContent.replace('{{otp_code}}', otp);
+  
+    const mailOptions = {
+      from: process.env.USER_MAILER,
+      to: user.email,
+      subject: 'Password Reset OTP',
+      html: htmlContent, // Use the HTML content with OTP
+    };
+  
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        return res.status(500).json({ error: 'Error sending email' });
+      }
+      res.status(200).json({ message: 'OTP sent to email' });
+    });
+  };
     exports.resetpassword = async (req, res) => {
         const { email, newpassword } = req.body;
         const user = await Admin.findOne({ email });
