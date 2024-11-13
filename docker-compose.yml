@@ -9,9 +9,6 @@ services:
     ports:
       - "5000:5000"  # Map port 5000 for the backend
     command: sh -c "npm install && npm start"  # Run npm install and then start the server
-    environment:
-      - NODE_ENV=development
-      - MONGO_URL=mongodb://mongo:27017/mydatabase
     depends_on:
       - mongo
 
@@ -33,6 +30,17 @@ services:
       - "27017:27017"  # Expose MongoDB default port
     volumes:
       - mongo-data:/data/db  # Persistent storage for MongoDB
+
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - "8081:8081"  # Expose Mongo Express on port 8081
+    environment:
+      - ME_CONFIG_MONGODB_URL=mongodb://mongo:27017/mydatabase  # URL to connect to MongoDB
+      - ME_CONFIG_BASICAUTH_USERNAME=admin  # Set Mongo Express username
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123  # Set Mongo Express password
+    depends_on:
+      - mongo
 
 volumes:
   mongo-data:
