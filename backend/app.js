@@ -19,6 +19,7 @@ const companySettingRoutes = require('./routes/EntrepriseSettingRoutes.js');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const payment = require('./routes/PaymentRoutes.js');
 const flouci = require('./routes/flouciPyamentRoutes.js');
+const superAdminRoutes = require('./routes/SuperAdminRoutes.js');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')
 var cors = require('cors');
@@ -61,3 +62,4 @@ app.use('/api/taxes', taxRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/payments', payment);
 app.use('/api/flouci', flouci);
+app.use('/superadmin', superAdminRoutes);

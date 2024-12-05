@@ -4,7 +4,7 @@ const app = express();
 const mongoose = require('mongoose');
 
 
-var MONGODB_URI = process.env.MONGODB_URI;
+var MONGODB_URI = process.env.MONGODB_URI_local;
 var PORT = process.env.PORT
 mongoose.connect(MONGODB_URI).then(()=>{
     console.log('connected to MongoDB local ');

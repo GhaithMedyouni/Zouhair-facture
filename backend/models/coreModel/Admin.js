@@ -45,6 +45,15 @@ const adminSchema = new Schema({
   lastOtpRequest: {
     type: Date,
   },
+  currentSessionId: {
+    type: String, // Store the session ID or token reference
+  },
+  etat: {
+    type: String,
+    enum: ['active', 'suspended', 'notActive'], // Possible states
+    default: 'notActive', // Default is active
+  },
+  planExpiration: { type: Date, required: true }, // Field for plan expiration
 });
 adminSchema.pre('save', async function (next) {
   const user = this;
